@@ -1,56 +1,43 @@
-#load "str.cma" ;;
+#load "str.cma"
+open Printf
 
 
-module Calculator : sig 
-  type token
+module Calculator : sig
   type expr
-  
+
+  exception InvalidExpression
+
   val string_to_expr: string -> expr
   val eval: expr -> int
 end = struct
-  type operator = Add | Sub | Mul | Div 
-  type token = 
-    | Operand of int
-    | Operator of operator
-  type expr = Expr of token list
-  
-  let to_token s =
-    match s with
-    | "+" -> Operator Add 
-    | "-" -> Operator Sub
-    | "*" -> Operator Mul
-    | "/" -> Operator Div
-    | _ -> Operand (int_of_string s)
+  exception InvalidExpression
 
+  type expr =
+    | Val of int
+    | Sum of expr * expr
+    | Sub of expr * expr
+    | Div of expr * expr
+    | Mul of expr * expr
+    | Pow of expr * expr
+  
   let string_to_expr s = 
-    let s = Str.split (Str.regexp " +")  s in
-    Expr ( List.map to_token s )
-  
-  let eval exp =
     let stack = Stack.create () in
-    let rec aux ls =
-      match ls with
-      | [] -> Stack.pop stack 
-      | (Operand x) :: xs -> Stack.push x stack ; aux xs 
-      | (Operator x) :: xs->
-        match x with
-        | Add -> Stack.push ((Stack.pop stack) + (Stack.pop stack)) stack ; aux xs
-        | Sub -> Stack.push ((Stack.pop stack) - (Stack.pop stack)) stack ; aux xs
-        | Mul -> Stack.push ((Stack.pop stack) * (Stack.pop stack)) stack ; aux xs
-        | Div -> Stack.push ((Stack.pop stack) / (Stack.pop stack)) stack ; aux xs
-      in
-    match exp with
-    | Expr (ls) -> aux ls
+    let handle_token = function
+      | "+" -> Stack.push (Sum (Stack.pop stack, Stack.pop stack)) stack
+      | "-" -> Stack.push (Sub (Stack.pop stack, Stack.pop stack)) stack
+      | "*" -> Stack.push (Mul (Stack.pop stack, Stack.pop stack)) stack
+      | "/" -> Stack.push (Div (Stack.pop stack, Stack.pop stack)) stack
+      | "^" -> Stack.push (Pow (Stack.pop stack, Stack.pop stack)) stack
+      | x   -> Stack.push (Val (int_of_string x)) stack
+    in
+    List.iter handle_token (Str.split (Str.regexp " +") s) ;
+    if Stack.length stack = 1 then Stack.pop stack else raise InvalidExpression
+  
+  let rec eval = function
+    | Val x       -> x
+    | Sum (a, b)  -> (eval a) + (eval b)
+    | Sub (a, b)  -> (eval a) - (eval b)
+    | Mul (a, b)  -> (eval a) * (eval b)
+    | Div (a, b)  -> (eval a) / (eval b)
+    | Pow (a, b)  -> int_of_float ((float_of_int (eval a)) ** (float_of_int (eval b))) 
 end
-
-let test () =
-  let t = [
-    "1 1 +";
-    "1 1 -";
-    "1 1 *";
-    "1 1 /";
-    "1 1 + 1 + 1 +";
-    "6 5 * 10 /";
-    "2 2 + 4 * 2 - 7 /"
-  ] in
-  List.iter (fun t -> printf "%s = %d\n" t (Calculator.eval (Calculator.string_to_expr t))) t
