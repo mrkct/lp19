@@ -2,3 +2,5 @@
 *.cmi
 *.pdf
 *.beam
+*.class
+*\$.class
