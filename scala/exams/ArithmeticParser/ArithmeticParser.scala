@@ -1,7 +1,7 @@
 import scala.util.parsing.combinator._;
 
 
-object Evaluator extends JavaTokenParsers {
+object ArithmeticParser extends JavaTokenParsers {
 
     sealed trait Expr {
         def step(): Expr;
